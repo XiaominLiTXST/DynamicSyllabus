@@ -302,6 +302,10 @@ function AnnouncementsSection({
   const [title, setTitle] = useState('')
   const [body, setBody] = useState('')
   const [publishDate, setPublishDate] = useState(new Date().toISOString().slice(0, 10))
+  const [editingId, setEditingId] = useState<number | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editBody, setEditBody] = useState('')
+  const [editPublishDate, setEditPublishDate] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
 
@@ -324,6 +328,43 @@ function AnnouncementsSection({
       onChange()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not add announcement.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  function startEdit(announcement: Announcement) {
+    setEditingId(announcement.id)
+    setEditTitle(announcement.title)
+    setEditBody(announcement.body)
+    setEditPublishDate(announcement.publish_date)
+    setError('')
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setEditTitle('')
+    setEditBody('')
+    setEditPublishDate('')
+  }
+
+  async function saveEdit(announcement: Announcement) {
+    setError('')
+    if (!editTitle.trim() || !editBody.trim() || !editPublishDate) {
+      setError('Title, message, and publish date are required.')
+      return
+    }
+    setBusy(true)
+    try {
+      await api.updateAnnouncement(cid, announcement.id, {
+        title: editTitle.trim(),
+        body: editBody.trim(),
+        publish_date: editPublishDate,
+      })
+      cancelEdit()
+      onChange()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update announcement.')
     } finally {
       setBusy(false)
     }
@@ -362,38 +403,88 @@ function AnnouncementsSection({
       <div className="border-t border-stone-100 mt-4 pt-3 space-y-2">
         {announcements.map((announcement) => (
           <div key={announcement.id} className="flex items-start gap-3 text-sm">
-            <div className="flex-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className={`font-medium ${announcement.status === 'archived' ? 'text-stone-400 line-through' : 'text-stone-900'}`}>
-                  {announcement.title}
-                </span>
-                <span className="text-xs text-stone-400">{fmtDate(announcement.publish_date)}</span>
+            {editingId === announcement.id ? (
+              <div className="flex-1 space-y-2">
+                <div className="grid gap-2 md:grid-cols-[1fr_11rem]">
+                  <input
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="border border-stone-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-600/40"
+                  />
+                  <input
+                    type="date"
+                    value={editPublishDate}
+                    onChange={(e) => setEditPublishDate(e.target.value)}
+                    className="border border-stone-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-600/40"
+                  />
+                </div>
+                <textarea
+                  value={editBody}
+                  onChange={(e) => setEditBody(e.target.value)}
+                  rows={3}
+                  className="w-full border border-stone-300 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-600/40"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => saveEdit(announcement)}
+                    className="bg-amber-700 text-white rounded-lg px-3 py-1.5 text-xs hover:bg-amber-800 disabled:opacity-50"
+                  >
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={cancelEdit}
+                    className="bg-white border border-stone-300 text-stone-700 rounded-lg px-3 py-1.5 text-xs hover:bg-stone-50"
+                  >
+                    Cancel
+                  </button>
+                </div>
               </div>
-              <p className={announcement.status === 'archived' ? 'text-stone-400' : 'text-stone-600'}>
-                {announcement.body}
-              </p>
-            </div>
-            <button
-              onClick={async () => {
-                await api.updateAnnouncement(cid, announcement.id, {
-                  status: announcement.status === 'archived' ? 'active' : 'archived',
-                })
-                onChange()
-              }}
-              className="text-xs text-stone-500 hover:text-stone-800"
-            >
-              {announcement.status === 'archived' ? 'Restore' : 'Archive'}
-            </button>
-            <button
-              onClick={async () => {
-                if (!window.confirm(`Delete announcement "${announcement.title}"?`)) return
-                await api.deleteAnnouncement(cid, announcement.id)
-                onChange()
-              }}
-              className="text-xs text-red-600 hover:text-red-800"
-            >
-              Delete
-            </button>
+            ) : (
+              <>
+                <div className="flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`font-medium ${announcement.status === 'archived' ? 'text-stone-400 line-through' : 'text-stone-900'}`}>
+                      {announcement.title}
+                    </span>
+                    <span className="text-xs text-stone-400">{fmtDate(announcement.publish_date)}</span>
+                  </div>
+                  <p className={announcement.status === 'archived' ? 'text-stone-400' : 'text-stone-600'}>
+                    {announcement.body}
+                  </p>
+                </div>
+                <button
+                  onClick={() => startEdit(announcement)}
+                  className="text-xs text-amber-700 hover:text-amber-900"
+                >
+                  Edit
+                </button>
+                <button
+                  onClick={async () => {
+                    await api.updateAnnouncement(cid, announcement.id, {
+                      status: announcement.status === 'archived' ? 'active' : 'archived',
+                    })
+                    onChange()
+                  }}
+                  className="text-xs text-stone-500 hover:text-stone-800"
+                >
+                  {announcement.status === 'archived' ? 'Restore' : 'Archive'}
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!window.confirm(`Delete announcement "${announcement.title}"?`)) return
+                    await api.deleteAnnouncement(cid, announcement.id)
+                    onChange()
+                  }}
+                  className="text-xs text-red-600 hover:text-red-800"
+                >
+                  Delete
+                </button>
+              </>
+            )}
           </div>
         ))}
         {announcements.length === 0 && <p className="text-sm text-stone-400">No announcements yet.</p>}
