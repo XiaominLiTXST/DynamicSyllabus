@@ -14,6 +14,7 @@ export default function Student() {
   const { token } = useParams<{ token: string }>()
   const [view, setView] = useState<PublicView | null>(null)
   const [error, setError] = useState('')
+  const [showAllAnnouncements, setShowAllAnnouncements] = useState(false)
 
   useEffect(() => {
     if (!token) return
@@ -25,6 +26,21 @@ export default function Student() {
 
   const today = todayISO()
   const weeks = groupByWeek(view.meetings)
+  const announcementCutoff = view.next_class?.date ?? today
+  const publishedAnnouncements = view.announcements
+    .filter(
+      (a) =>
+        a.status === 'active' &&
+        a.publish_date <= today &&
+        a.publish_date <= announcementCutoff,
+    )
+    .sort((a, b) =>
+      `${b.publish_date}-${b.created_at}`.localeCompare(`${a.publish_date}-${a.created_at}`),
+    )
+  const visibleAnnouncements = showAllAnnouncements
+    ? publishedAnnouncements
+    : publishedAnnouncements.slice(0, 2)
+  const hiddenAnnouncementCount = publishedAnnouncements.length - visibleAnnouncements.length
   const assessmentsFor = (date: string, meetingId: number): Assessment[] =>
     view.assessments.filter(
       (a) => a.status === 'active' && (a.due_date === date || a.linked_meeting_id === meetingId),
@@ -41,9 +57,9 @@ export default function Student() {
           <p className="text-xs text-stone-400 mt-1">Updated {fmtDateTime(view.updated_at)}</p>
         </header>
 
-        <section className="grid gap-3 mb-8 lg:grid-cols-3">
+        <section className="space-y-3 mb-8">
           <div className="bg-white rounded-xl border border-stone-200 p-4">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400 mb-2">Next class</h2>
+            <h2 className="text-lg font-semibold text-stone-900 mb-1">Next class</h2>
             {view.next_class ? (
               <p className="text-stone-800">
                 <span className="font-medium">{fmtDate(view.next_class.date)}</span>
@@ -53,38 +69,50 @@ export default function Student() {
               <p className="text-stone-400">No upcoming classes.</p>
             )}
           </div>
-          <div className="bg-white rounded-xl border border-stone-200 p-4">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400 mb-2">Upcoming deadlines</h2>
-            {view.upcoming_deadlines.length ? (
-              <ul className="space-y-1">
-                {view.upcoming_deadlines.map((a) => (
-                  <li key={a.id} className="text-sm flex items-center gap-2">
-                    <span className={`px-1.5 py-0.5 rounded text-xs ${KIND_STYLES[a.kind] ?? ''}`}>{a.kind}</span>
-                    <span className="flex-1 text-stone-700">{a.title}</span>
-                    <span className="text-stone-500">{fmtDate(a.due_date)}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-stone-400">Nothing due soon.</p>
-            )}
-          </div>
-          <div className="bg-white rounded-xl border border-stone-200 p-4">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400 mb-2">Announcements</h2>
-            {view.latest_announcements.length ? (
-              <ul className="space-y-2">
-                {view.latest_announcements.map((a) => (
-                  <li key={a.id} className="text-sm">
-                    <div className="font-medium text-stone-800">{a.title}</div>
-                    <p className="text-stone-500">{a.body}</p>
-                    <p className="text-xs text-stone-400 mt-0.5">{fmtDate(a.publish_date)}</p>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="text-stone-400">No announcements yet.</p>
-            )}
-          </div>
+          {view.upcoming_deadlines.map((a) => (
+            <div key={a.id} className="bg-white rounded-xl border border-stone-200 p-4">
+              <p className="text-stone-900">
+                <span className="font-semibold">Deadline:</span>{' '}
+                <span>{a.title} due {fmtDate(a.due_date)}</span>
+                <span className={`ml-2 px-1.5 py-0.5 rounded text-xs ${KIND_STYLES[a.kind] ?? 'bg-stone-100 text-stone-700'}`}>
+                  {a.kind}
+                </span>
+              </p>
+            </div>
+          ))}
+          {view.upcoming_deadlines.length === 0 && (
+            <div className="bg-white rounded-xl border border-stone-200 p-4">
+              <p className="text-stone-400">No upcoming deadlines.</p>
+            </div>
+          )}
+          {visibleAnnouncements.map((a) => (
+            <div key={a.id} className="bg-white rounded-xl border border-stone-200 p-4">
+              <p className="text-stone-900">
+                <span className="font-semibold">Announcement:</span>{' '}
+                <span className="font-medium">{a.title}</span>
+              </p>
+              <p className="text-sm text-stone-600 mt-1">{a.body}</p>
+              <p className="text-xs text-stone-400 mt-1">{fmtDate(a.publish_date)}</p>
+            </div>
+          ))}
+          {publishedAnnouncements.length === 0 && (
+            <div className="bg-white rounded-xl border border-stone-200 p-4">
+              <p className="text-stone-400">No announcements before the next class.</p>
+            </div>
+          )}
+          {publishedAnnouncements.length > 2 && (
+            <div className="flex justify-center pt-1">
+              <button
+                type="button"
+                onClick={() => setShowAllAnnouncements((current) => !current)}
+                className="min-w-44 rounded-lg border border-stone-300 bg-white px-5 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50"
+              >
+                {showAllAnnouncements
+                  ? 'View less'
+                  : `View more${hiddenAnnouncementCount > 0 ? ` (${hiddenAnnouncementCount})` : ''}`}
+              </button>
+            </div>
+          )}
         </section>
 
         <div className="space-y-6">
