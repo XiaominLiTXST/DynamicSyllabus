@@ -28,6 +28,15 @@ def public_syllabus(token: str, session: Session = Depends(get_session)):
         ],
         key=lambda a: a["due_date"],
     )[:5]
+    latest_announcements = sorted(
+        [
+            a
+            for a in state["announcements"]
+            if a["status"] == "active" and a["publish_date"] <= today
+        ],
+        key=lambda a: (a["publish_date"], a["created_at"]),
+        reverse=True,
+    )[:3]
     next_class = next(
         (
             m
@@ -43,7 +52,9 @@ def public_syllabus(token: str, session: Session = Depends(get_session)):
         "course": course_public,
         "meetings": state["meetings"],
         "assessments": state["assessments"],
+        "announcements": state["announcements"],
         "upcoming_deadlines": upcoming_deadlines,
+        "latest_announcements": latest_announcements,
         "next_class": next_class,
         "updated_at": course.updated_at.isoformat(),
     }

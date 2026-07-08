@@ -76,6 +76,19 @@ class AssessmentUpdate(BaseModel):
     status: Optional[str] = None
 
 
+class AnnouncementCreate(BaseModel):
+    title: str
+    body: str
+    publish_date: date = Field(default_factory=date.today)
+
+
+class AnnouncementUpdate(BaseModel):
+    title: Optional[str] = None
+    body: Optional[str] = None
+    publish_date: Optional[date] = None
+    status: Optional[str] = None
+
+
 class ChatMessage(BaseModel):
     role: str
     content: str

@@ -32,6 +32,10 @@ class Course(SQLModel, table=True):
         back_populates="course",
         sa_relationship_kwargs={"cascade": "all, delete-orphan"},
     )
+    announcements: list["Announcement"] = Relationship(
+        back_populates="course",
+        sa_relationship_kwargs={"cascade": "all, delete-orphan"},
+    )
 
 
 class ClassMeeting(SQLModel, table=True):
@@ -74,6 +78,19 @@ class Assessment(SQLModel, table=True):
     status: str = "active"  # "active" | "canceled"
 
     course: Course | None = Relationship(back_populates="assessments")
+
+
+class Announcement(SQLModel, table=True):
+    id: int | None = Field(default=None, primary_key=True)
+    course_id: int = Field(foreign_key="course.id", index=True)
+    title: str
+    body: str
+    publish_date: date = Field(default_factory=date.today)
+    status: str = "active"  # "active" | "archived"
+    created_at: datetime = Field(default_factory=utcnow)
+    updated_at: datetime = Field(default_factory=utcnow)
+
+    course: Course | None = Relationship(back_populates="announcements")
 
 
 class ChangeLog(SQLModel, table=True):

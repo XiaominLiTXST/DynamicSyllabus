@@ -1,4 +1,5 @@
 import type {
+  Announcement,
   Assessment,
   ChatResponse,
   CourseState,
@@ -87,6 +88,18 @@ export const api = {
 
   deleteAssessment: (cid: number, aid: number) =>
     req<{ ok: boolean }>(`/courses/${cid}/assessments/${aid}`, { method: 'DELETE' }),
+
+  addAnnouncement: (cid: number, data: Record<string, unknown>) =>
+    req<Announcement>(`/courses/${cid}/announcements`, { method: 'POST', ...body(data) }),
+
+  updateAnnouncement: (cid: number, aid: number, data: Partial<Announcement>) =>
+    req<Announcement>(`/courses/${cid}/announcements/${aid}`, {
+      method: 'PATCH',
+      ...body(data),
+    }),
+
+  deleteAnnouncement: (cid: number, aid: number) =>
+    req<{ ok: boolean }>(`/courses/${cid}/announcements/${aid}`, { method: 'DELETE' }),
 
   chat: (cid: number, message: string, history: { role: string; content: string }[]) =>
     req<ChatResponse>(`/courses/${cid}/chat`, { method: 'POST', ...body({ message, history }) }),

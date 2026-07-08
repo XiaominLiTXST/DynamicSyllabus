@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { api } from '../api'
 import { fmtDate, groupByWeek } from '../lib/format'
-import type { Assessment, CourseMeta, CourseState, Meeting } from '../types'
+import type { Announcement, Assessment, CourseMeta, CourseState, Meeting } from '../types'
 
 const KIND_STYLES: Record<string, string> = {
   assignment: 'bg-sky-100 text-sky-800',
@@ -10,6 +10,7 @@ const KIND_STYLES: Record<string, string> = {
 }
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+type ToolTab = 'assignment' | 'announcement' | 'course'
 
 function CourseInfoSection({
   course,
@@ -91,7 +92,7 @@ function CourseInfoSection({
   const field = 'border border-stone-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-600/40'
 
   return (
-    <form onSubmit={submit} className="bg-white rounded-2xl border border-stone-200 p-4">
+    <form onSubmit={submit}>
       <div className="flex items-center justify-between gap-3 mb-3">
         <h3 className="font-semibold text-stone-900">Course details</h3>
         <button disabled={busy} className="bg-stone-800 text-white rounded-lg px-3 py-1.5 text-sm hover:bg-stone-900 disabled:opacity-50">
@@ -245,8 +246,8 @@ function AssessmentsSection({
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-stone-200 p-4">
-      <h3 className="font-semibold text-stone-900 mb-3">Assessments</h3>
+    <div>
+      <h3 className="font-semibold text-stone-900 mb-3">New assignment</h3>
       <div className="space-y-2 mb-4">
         {assessments.map((a) => (
           <div key={a.id} className="flex items-center gap-2 text-sm">
@@ -273,7 +274,7 @@ function AssessmentsSection({
         ))}
         {assessments.length === 0 && <p className="text-sm text-stone-400">No assessments yet.</p>}
       </div>
-      <div className="flex gap-2 items-center border-t border-stone-100 pt-3">
+      <div className="flex flex-col gap-2 border-t border-stone-100 pt-3 md:flex-row md:items-center">
         <select value={kind} onChange={(e) => setKind(e.target.value)} className="border border-stone-300 rounded-lg px-2 py-1.5 text-sm">
           <option value="assignment">Assignment</option>
           <option value="quiz">Quiz</option>
@@ -284,6 +285,173 @@ function AssessmentsSection({
         <button onClick={add} className="bg-amber-700 text-white rounded-lg px-3 py-1.5 text-sm hover:bg-amber-800">
           Add
         </button>
+      </div>
+    </div>
+  )
+}
+
+function AnnouncementsSection({
+  cid,
+  announcements,
+  onChange,
+}: {
+  cid: number
+  announcements: Announcement[]
+  onChange: () => void
+}) {
+  const [title, setTitle] = useState('')
+  const [body, setBody] = useState('')
+  const [publishDate, setPublishDate] = useState(new Date().toISOString().slice(0, 10))
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+
+  async function add(e: FormEvent) {
+    e.preventDefault()
+    setError('')
+    if (!title.trim() || !body.trim() || !publishDate) {
+      setError('Title, message, and publish date are required.')
+      return
+    }
+    setBusy(true)
+    try {
+      await api.addAnnouncement(cid, {
+        title: title.trim(),
+        body: body.trim(),
+        publish_date: publishDate,
+      })
+      setTitle('')
+      setBody('')
+      onChange()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not add announcement.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div>
+      <h3 className="font-semibold text-stone-900 mb-3">Announcement</h3>
+      <form onSubmit={add} className="space-y-3">
+        <div className="grid gap-3 md:grid-cols-[1fr_11rem]">
+          <input
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Announcement title"
+            className="border border-stone-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-600/40"
+          />
+          <input
+            type="date"
+            value={publishDate}
+            onChange={(e) => setPublishDate(e.target.value)}
+            className="border border-stone-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-600/40"
+          />
+        </div>
+        <textarea
+          value={body}
+          onChange={(e) => setBody(e.target.value)}
+          placeholder="Write the message students should see."
+          rows={3}
+          className="w-full border border-stone-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-600/40"
+        />
+        {error && <p className="text-sm text-red-600">{error}</p>}
+        <button disabled={busy} className="bg-amber-700 text-white rounded-lg px-3 py-1.5 text-sm hover:bg-amber-800 disabled:opacity-50">
+          {busy ? 'Posting...' : 'Post announcement'}
+        </button>
+      </form>
+      <div className="border-t border-stone-100 mt-4 pt-3 space-y-2">
+        {announcements.map((announcement) => (
+          <div key={announcement.id} className="flex items-start gap-3 text-sm">
+            <div className="flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className={`font-medium ${announcement.status === 'archived' ? 'text-stone-400 line-through' : 'text-stone-900'}`}>
+                  {announcement.title}
+                </span>
+                <span className="text-xs text-stone-400">{fmtDate(announcement.publish_date)}</span>
+              </div>
+              <p className={announcement.status === 'archived' ? 'text-stone-400' : 'text-stone-600'}>
+                {announcement.body}
+              </p>
+            </div>
+            <button
+              onClick={async () => {
+                await api.updateAnnouncement(cid, announcement.id, {
+                  status: announcement.status === 'archived' ? 'active' : 'archived',
+                })
+                onChange()
+              }}
+              className="text-xs text-stone-500 hover:text-stone-800"
+            >
+              {announcement.status === 'archived' ? 'Restore' : 'Archive'}
+            </button>
+            <button
+              onClick={async () => {
+                if (!window.confirm(`Delete announcement "${announcement.title}"?`)) return
+                await api.deleteAnnouncement(cid, announcement.id)
+                onChange()
+              }}
+              className="text-xs text-red-600 hover:text-red-800"
+            >
+              Delete
+            </button>
+          </div>
+        ))}
+        {announcements.length === 0 && <p className="text-sm text-stone-400">No announcements yet.</p>}
+      </div>
+    </div>
+  )
+}
+
+function CourseTools({
+  state,
+  onChange,
+}: {
+  state: CourseState
+  onChange: () => void
+}) {
+  const [tab, setTab] = useState<ToolTab>('assignment')
+  const tabs: { id: ToolTab; label: string }[] = [
+    { id: 'assignment', label: 'New Assignment' },
+    { id: 'announcement', label: 'Announcement' },
+    { id: 'course', label: 'Edit Course' },
+  ]
+
+  return (
+    <div className="bg-white rounded-2xl border border-stone-200 overflow-hidden">
+      <div className="flex flex-wrap border-b border-stone-200">
+        {tabs.map((item) => (
+          <button
+            type="button"
+            key={item.id}
+            onClick={() => setTab(item.id)}
+            className={`px-4 py-3 text-sm font-semibold border-r border-stone-200 ${
+              tab === item.id
+                ? 'bg-amber-700 text-white'
+                : 'bg-amber-50 text-stone-700 hover:bg-amber-100'
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+      <div className="p-4">
+        {tab === 'assignment' && (
+          <AssessmentsSection
+            cid={state.course.id}
+            assessments={state.assessments}
+            onChange={onChange}
+          />
+        )}
+        {tab === 'announcement' && (
+          <AnnouncementsSection
+            cid={state.course.id}
+            announcements={state.announcements}
+            onChange={onChange}
+          />
+        )}
+        {tab === 'course' && (
+          <CourseInfoSection course={state.course} onChange={onChange} />
+        )}
       </div>
     </div>
   )
@@ -301,7 +469,7 @@ export default function SyllabusEditor({
 
   return (
     <div className="space-y-5">
-      <CourseInfoSection course={state.course} onChange={onChange} />
+      <CourseTools state={state} onChange={onChange} />
       {weeks.map(([weekKey, meetings], i) => (
         <div key={weekKey}>
           <h3 className="text-xs font-semibold uppercase tracking-wide text-stone-400 mb-2">
@@ -317,7 +485,6 @@ export default function SyllabusEditor({
       {state.meetings.length === 0 && (
         <p className="text-stone-500">No meetings — check the course dates and meeting days.</p>
       )}
-      <AssessmentsSection cid={cid} assessments={state.assessments} onChange={onChange} />
     </div>
   )
 }

@@ -41,7 +41,7 @@ export default function Student() {
           <p className="text-xs text-stone-400 mt-1">Updated {fmtDateTime(view.updated_at)}</p>
         </header>
 
-        <section className="grid sm:grid-cols-2 gap-3 mb-8">
+        <section className="grid gap-3 mb-8 lg:grid-cols-3">
           <div className="bg-white rounded-xl border border-stone-200 p-4">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400 mb-2">Next class</h2>
             {view.next_class ? (
@@ -67,6 +67,22 @@ export default function Student() {
               </ul>
             ) : (
               <p className="text-stone-400">Nothing due soon.</p>
+            )}
+          </div>
+          <div className="bg-white rounded-xl border border-stone-200 p-4">
+            <h2 className="text-xs font-semibold uppercase tracking-wide text-stone-400 mb-2">Announcements</h2>
+            {view.latest_announcements.length ? (
+              <ul className="space-y-2">
+                {view.latest_announcements.map((a) => (
+                  <li key={a.id} className="text-sm">
+                    <div className="font-medium text-stone-800">{a.title}</div>
+                    <p className="text-stone-500">{a.body}</p>
+                    <p className="text-xs text-stone-400 mt-0.5">{fmtDate(a.publish_date)}</p>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-stone-400">No announcements yet.</p>
             )}
           </div>
         </section>

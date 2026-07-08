@@ -7,9 +7,11 @@ from sqlmodel import Session, select
 from ..auth import create_token, require_admin
 from ..config import settings
 from ..db import get_session
-from ..models import Assessment, ChangeLog, ClassMeeting, Course, Reading, utcnow
+from ..models import Announcement, Assessment, ChangeLog, ClassMeeting, Course, Reading, utcnow
 from ..scheduling import generate_meeting_dates
 from ..schemas import (
+    AnnouncementCreate,
+    AnnouncementUpdate,
     AssessmentCreate,
     AssessmentUpdate,
     CourseClone,
@@ -19,7 +21,7 @@ from ..schemas import (
     MeetingUpdate,
     ReadingCreate,
 )
-from ..serialization import assessment_to_dict, load_state, meeting_to_dict
+from ..serialization import announcement_to_dict, assessment_to_dict, load_state, meeting_to_dict
 
 router = APIRouter(prefix="/api", tags=["courses"])
 
@@ -221,6 +223,17 @@ def clone_course(body: CourseClone, session: Session = Depends(get_session)):
             )
         )
 
+    for source_announcement in sorted(source.announcements, key=lambda a: a.created_at):
+        session.add(
+            Announcement(
+                course_id=course.id,
+                title=source_announcement.title,
+                body=source_announcement.body,
+                publish_date=body.start_date,
+                status=source_announcement.status,
+            )
+        )
+
     session.commit()
     return load_state(session, course.id)
 
@@ -300,6 +313,10 @@ def delete_course(course_id: int, session: Session = Depends(get_session)):
         select(ChangeLog).where(ChangeLog.course_id == course_id)
     ).all():
         session.delete(log)
+    for announcement in session.exec(
+        select(Announcement).where(Announcement.course_id == course_id)
+    ).all():
+        session.delete(announcement)
     session.delete(course)
     session.commit()
     return {"ok": True}
@@ -411,6 +428,58 @@ def delete_assessment(
     if assessment is None or assessment.course_id != course_id:
         raise HTTPException(status_code=404, detail="Assessment not found")
     session.delete(assessment)
+    _touch(session, course_id)
+    session.commit()
+    return {"ok": True}
+
+
+@router.post("/courses/{course_id}/announcements", dependencies=[Depends(require_admin)])
+def add_announcement(
+    course_id: int, body: AnnouncementCreate, session: Session = Depends(get_session)
+):
+    _get_course(session, course_id)
+    announcement = Announcement(course_id=course_id, **body.model_dump())
+    session.add(announcement)
+    _touch(session, course_id)
+    session.commit()
+    session.refresh(announcement)
+    return announcement_to_dict(announcement)
+
+
+@router.patch(
+    "/courses/{course_id}/announcements/{announcement_id}",
+    dependencies=[Depends(require_admin)],
+)
+def update_announcement(
+    course_id: int,
+    announcement_id: int,
+    body: AnnouncementUpdate,
+    session: Session = Depends(get_session),
+):
+    announcement = session.get(Announcement, announcement_id)
+    if announcement is None or announcement.course_id != course_id:
+        raise HTTPException(status_code=404, detail="Announcement not found")
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(announcement, field, value)
+    announcement.updated_at = utcnow()
+    session.add(announcement)
+    _touch(session, course_id)
+    session.commit()
+    session.refresh(announcement)
+    return announcement_to_dict(announcement)
+
+
+@router.delete(
+    "/courses/{course_id}/announcements/{announcement_id}",
+    dependencies=[Depends(require_admin)],
+)
+def delete_announcement(
+    course_id: int, announcement_id: int, session: Session = Depends(get_session)
+):
+    announcement = session.get(Announcement, announcement_id)
+    if announcement is None or announcement.course_id != course_id:
+        raise HTTPException(status_code=404, detail="Announcement not found")
+    session.delete(announcement)
     _touch(session, course_id)
     session.commit()
     return {"ok": True}

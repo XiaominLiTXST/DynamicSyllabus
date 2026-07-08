@@ -4,7 +4,7 @@ the diff, and ChangeLog snapshots. The state dict is fully JSON-serializable
 
 from sqlmodel import Session, select
 
-from .models import Assessment, ClassMeeting, Course
+from .models import Announcement, Assessment, ClassMeeting, Course
 
 
 def reading_to_dict(r) -> dict:
@@ -45,7 +45,19 @@ def assessment_to_dict(a) -> dict:
     }
 
 
-def course_to_state(course, meetings, assessments) -> dict:
+def announcement_to_dict(a) -> dict:
+    return {
+        "id": a.id,
+        "title": a.title,
+        "body": a.body,
+        "publish_date": a.publish_date.isoformat(),
+        "status": a.status,
+        "created_at": a.created_at.isoformat(),
+        "updated_at": a.updated_at.isoformat(),
+    }
+
+
+def course_to_state(course, meetings, assessments, announcements) -> dict:
     return {
         "course": {
             "id": course.id,
@@ -66,6 +78,14 @@ def course_to_state(course, meetings, assessments) -> dict:
             assessment_to_dict(a)
             for a in sorted(assessments, key=lambda a: (a.due_date, a.id or 0))
         ],
+        "announcements": [
+            announcement_to_dict(a)
+            for a in sorted(
+                announcements,
+                key=lambda a: (a.publish_date, a.created_at, a.id or 0),
+                reverse=True,
+            )
+        ],
     }
 
 
@@ -79,4 +99,7 @@ def load_state(session: Session, course_id: int) -> dict | None:
     assessments = session.exec(
         select(Assessment).where(Assessment.course_id == course_id)
     ).all()
-    return course_to_state(course, meetings, assessments)
+    announcements = session.exec(
+        select(Announcement).where(Announcement.course_id == course_id)
+    ).all()
+    return course_to_state(course, meetings, assessments, announcements)
