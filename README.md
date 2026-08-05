@@ -43,7 +43,6 @@ frontend/
 
 ```bash
 cd backend
-cp .env.example .env          # set ADMIN_PASSWORD and OPENAI_API_KEY
 uv run uvicorn app.main:app --reload --port 8010
 ```
 
