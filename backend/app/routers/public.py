@@ -10,10 +10,10 @@ from ..serialization import load_state
 router = APIRouter(prefix="/api/public", tags=["public"])
 
 
-@router.get("/{token}")
-def public_syllabus(token: str, session: Session = Depends(get_session)):
+@router.get("/{slug}")
+def public_syllabus(slug: str, session: Session = Depends(get_session)):
     """Read-only syllabus for students — no auth, just the unguessable token."""
-    course = session.exec(select(Course).where(Course.public_token == token)).first()
+    course = session.exec(select(Course).where(Course.public_token == slug)).first()
     if course is None:
         raise HTTPException(status_code=404, detail="Syllabus not found")
 

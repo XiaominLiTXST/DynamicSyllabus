@@ -15,6 +15,10 @@ def init_db() -> None:
     from . import models  # noqa: F401
 
     SQLModel.metadata.create_all(engine)
+    from .public_links import migrate_public_slugs
+
+    with Session(engine) as session:
+        migrate_public_slugs(session)
 
 
 def get_session() -> Iterator[Session]:

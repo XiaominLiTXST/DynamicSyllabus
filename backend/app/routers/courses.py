@@ -1,5 +1,4 @@
 import hmac
-import secrets
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
@@ -8,6 +7,7 @@ from ..auth import create_token, require_admin
 from ..config import settings
 from ..db import get_session
 from ..models import Announcement, Assessment, ChangeLog, ClassMeeting, Course, Reading, utcnow
+from ..public_links import available_course_slug
 from ..scheduling import generate_meeting_dates
 from ..schemas import (
     AnnouncementCreate,
@@ -131,7 +131,7 @@ def create_course(body: CourseCreate, session: Session = Depends(get_session)):
         start_date=body.start_date,
         end_date=body.end_date,
         excluded_dates=[d.isoformat() for d in body.excluded_dates],
-        public_token=secrets.token_urlsafe(9),
+        public_token=available_course_slug(session, body.title, body.term),
     )
     session.add(course)
     session.commit()
@@ -168,7 +168,7 @@ def clone_course(body: CourseClone, session: Session = Depends(get_session)):
         start_date=body.start_date,
         end_date=body.end_date,
         excluded_dates=_date_list(body.excluded_dates),
-        public_token=secrets.token_urlsafe(9),
+        public_token=available_course_slug(session, body.title, body.term),
     )
     session.add(course)
     session.flush()
@@ -281,6 +281,13 @@ def update_course(
     for field in ("title", "term", "instructor", "timezone"):
         if field in data:
             setattr(course, field, data[field])
+    if "title" in data or "term" in data:
+        course.public_token = available_course_slug(
+            session,
+            course.title,
+            course.term,
+            exclude_course_id=course.id,
+        )
     if schedule_changed:
         course.start_date = start_date
         course.end_date = end_date

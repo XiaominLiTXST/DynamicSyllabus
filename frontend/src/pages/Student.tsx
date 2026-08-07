@@ -11,15 +11,15 @@ const KIND_STYLES: Record<string, string> = {
 }
 
 export default function Student() {
-  const { token } = useParams<{ token: string }>()
+  const { slug } = useParams<{ slug: string }>()
   const [view, setView] = useState<PublicView | null>(null)
   const [error, setError] = useState('')
   const [showAllAnnouncements, setShowAllAnnouncements] = useState(false)
 
   useEffect(() => {
-    if (!token) return
-    api.getPublic(token).then(setView).catch(() => setError('Syllabus not found.'))
-  }, [token])
+    if (!slug) return
+    api.getPublic(slug).then(setView).catch(() => setError('Syllabus not found.'))
+  }, [slug])
 
   if (error) return <Centered>{error}</Centered>
   if (!view) return <Centered>Loading…</Centered>

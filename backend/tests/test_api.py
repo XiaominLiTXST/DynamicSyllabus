@@ -1,12 +1,12 @@
 import os
 
-os.environ["DATABASE_URL"] = "sqlite:////tmp/syllabus_api_test.db"
+os.environ["DATABASE_URL"] = "sqlite:///./syllabus_api_test.db"
 os.environ["ADMIN_PASSWORD"] = "changeme"
 os.environ["SESSION_SECRET"] = "test-secret"
 os.environ["LLM_PROVIDER"] = "openai"
 os.environ["OPENAI_API_KEY"] = ""  # force the stub provider
 
-for _path in ("/tmp/syllabus_api_test.db",):
+for _path in ("syllabus_api_test.db",):
     try:
         os.remove(_path)
     except FileNotFoundError:
@@ -57,7 +57,7 @@ def test_requires_auth(client):
 def test_course_generates_meetings(course):
     assert len(course["meetings"]) == 4
     assert course["meetings"][0]["date"] == "2026-09-07"
-    assert course["course"]["public_token"]
+    assert course["course"]["public_token"] == "cs250fall2026"
 
 
 def test_apply_move_then_undo(client, auth, course):
