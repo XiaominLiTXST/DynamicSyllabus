@@ -7,7 +7,7 @@ import Student from './pages/Student'
 
 const router = createBrowserRouter([
   { path: '/', element: <Instructor /> },
-  { path: '/s/:token', element: <Student /> },
+  { path: '/:slug', element: <Student /> },
 ])
 
 createRoot(document.getElementById('root')!).render(

@@ -58,8 +58,26 @@ npm run dev
 ```
 
 Open http://localhost:5173, sign in with `ADMIN_PASSWORD`, create a course, and use the
-Assistant panel. The student link is `http://localhost:5173/s/<token>` (Copy student
-link button).
+Assistant panel. Student links use the normalized course title and term, such as
+`http://localhost:5173/cs1428fall2026` (Copy student link button).
+
+### One-command Windows hosting
+
+After installing `uv` and Node/npm, the Windows supervisor starts the backend and
+frontend and automatically restarts either process if it exits. The named Cloudflare
+Tunnel runs independently as the Windows `cloudflared` service:
+
+```powershell
+.\scripts\manage.ps1 start
+.\scripts\manage.ps1 status
+.\scripts\manage.ps1 restart
+.\scripts\manage.ps1 stop
+```
+
+You can also double-click `start-all.cmd`, `restart-all.cmd`, or `stop-all.cmd` in
+File Explorer. Runtime state and logs are written to `.runtime/`. The launcher allows
+`syllabus.xiaominapps.com` in Vite and reports the state of the independently managed
+Cloudflare service. The permanent address is saved in `PUBLIC-URL.txt`.
 
 ## Tests
 

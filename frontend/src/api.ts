@@ -115,5 +115,5 @@ export const api = {
       method: 'POST',
     }),
 
-  getPublic: (token: string) => req<PublicView>(`/public/${token}`),
+  getPublic: (slug: string) => req<PublicView>(`/public/${slug}`),
 }

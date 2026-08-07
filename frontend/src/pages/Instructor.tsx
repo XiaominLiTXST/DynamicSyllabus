@@ -114,7 +114,7 @@ export default function Instructor() {
   }
 
   // Editor screen.
-  const shareUrl = `${location.origin}/s/${state.course.public_token}`
+  const shareUrl = `${location.origin}/${state.course.public_token}`
   return (
     <div className="min-h-screen bg-stone-100 flex flex-col">
       <Header
